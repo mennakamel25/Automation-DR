@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CRP - Resilient App</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Multi-Region Resilience Demo</h1>
+    <span id="site" class="badge unknown">checking...</span>
+  </header>
+
+  <main>
+    <section class="card" id="info">
+      <h2>Where am I served from?</h2>
+      <dl>
+        <dt>Site</dt><dd id="i-site">-</dd>
+        <dt>AWS region</dt><dd id="i-region">-</dd>
+        <dt>Availability zone</dt><dd id="i-zone">-</dd>
+        <dt>API node</dt><dd id="i-node">-</dd>
+        <dt>Database</dt><dd id="i-db">-</dd>
+        <dt>Failover generation</dt><dd id="i-gen">-</dd>
+        <dt>Writes</dt><dd id="i-writes">-</dd>
+      </dl>
+    </section>
+
+    <section class="card">
+      <h2>Items</h2>
+      <form id="form">
+        <input id="title" maxlength="200" placeholder="Add an item (written to PostgreSQL)" required>
+        <button type="submit">Add</button>
+      </form>
+      <p id="error" class="error" hidden></p>
+      <ul id="list"></ul>
+    </section>
+  </main>
+
+  <footer>Auto-refreshes every 5 seconds. During a failover the badge changes from PRIMARY to DR and your data stays.</footer>
+  <script src="app.js"></script>
+</body>
+</html>

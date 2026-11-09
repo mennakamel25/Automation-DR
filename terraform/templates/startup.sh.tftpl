@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# EC2 user data (first boot only). The real logic lives in the application bundle (application/host/*),
+# which Terraform stages in S3 because user data is limited to 16 KB.
+set -euo pipefail
+exec > >(tee -a /var/log/crp-startup.log) 2>&1
+export DEBIAN_FRONTEND=noninteractive
+mkdir -p /etc/crp /opt/crp/app /var/lib/crp
+
+# AWS DRS identifies a source server by its hostname: give it the stable CRP name and keep it.
+hostnamectl set-hostname ${name}
+printf 'preserve_hostname: true\n' > /etc/cloud/cloud.cfg.d/99-crp-hostname.cfg
+grep -q " ${name}" /etc/hosts || echo "127.0.1.1 ${name}" >> /etc/hosts
+
+if [ ! -f /var/lib/crp/bundle.done ]; then
+  apt-get update -qq
+  apt-get install -y -qq unzip curl jq awscli
+  aws s3 cp "s3://${bundle_bucket}/${bundle_key}" /tmp/crp-bundle.zip --region ${primary_region}
+  unzip -q -o /tmp/crp-bundle.zip -d /opt/crp/app
+  chmod +x /opt/crp/app/host/*.sh
+  cat > /etc/crp/node.env <<'ENVEOF'
+${node_env}
+ENVEOF
+  chmod 600 /etc/crp/node.env
+  touch /var/lib/crp/bundle.done
+fi
+
+exec /opt/crp/app/host/bootstrap.sh

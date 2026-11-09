@@ -1,0 +1,56 @@
+# Rendered by install-web.sh / crp-boot.sh. Placeholders: @INTERNAL_DOMAIN@ @DOMAIN@
+# Port 80  : health checks (/healthz) and redirect to HTTPS.
+# Port 443 : TLS with a self-signed certificate; the public certificate is the ACM certificate on the ALB.
+
+map $http_upgrade $connection_upgrade { default upgrade; '' close; }
+
+server {
+    listen 80 default_server;
+    server_name _;
+
+    location = /healthz { access_log off; default_type text/plain; return 200 "ok\n"; }
+    location / { return 301 https://$host$request_uri; }
+}
+
+server {
+    listen 443 ssl default_server;
+    http2 on;
+    server_name @DOMAIN@ _;
+
+    ssl_certificate     /etc/crp/tls/fullchain.pem;
+    ssl_certificate_key /etc/crp/tls/privkey.pem;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_session_cache   shared:SSL:10m;
+    add_header Strict-Transport-Security "max-age=31536000" always;
+    add_header X-Content-Type-Options nosniff always;
+
+    root /var/www/crp;
+    index index.html;
+
+    # Liveness of the web tier only (used by the ALB target group).
+    location = /healthz { access_log off; default_type text/plain; return 200 "ok\n"; }
+
+    # Deep check through the API to the database (used by DR validation).
+    location = /healthz/deep {
+        set $api_upstream api.@INTERNAL_DOMAIN@:8000;
+        proxy_pass http://$api_upstream/readyz;
+        proxy_connect_timeout 3s;
+        proxy_read_timeout 8s;
+    }
+
+    location /api/ {
+        # Resolved at request time against the private DNS zone of the region we run in, so the same
+        # config works in the primary region and in the DR region after a DRS recovery.
+        set $api_upstream api.@INTERNAL_DOMAIN@:8000;
+        proxy_pass http://$api_upstream;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_next_upstream error timeout http_502 http_503;
+        proxy_connect_timeout 3s;
+        proxy_read_timeout 15s;
+    }
+
+    location / { try_files $uri /index.html; }
+}

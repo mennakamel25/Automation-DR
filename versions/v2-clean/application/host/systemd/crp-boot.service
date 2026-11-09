@@ -1,0 +1,13 @@
+[Unit]
+Description=CRP per-boot configuration (region detection, DR recovery steps)
+After=network-online.target
+Wants=network-online.target
+Before=nginx.service crp-api.service patroni.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/opt/crp/app/host/crp-boot.sh
+
+[Install]
+WantedBy=multi-user.target

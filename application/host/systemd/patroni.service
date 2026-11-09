@@ -1,0 +1,16 @@
+[Unit]
+Description=Patroni PostgreSQL HA
+After=network-online.target crp-boot.service etcd.service
+Wants=crp-boot.service
+
+[Service]
+Type=simple
+User=postgres
+Group=postgres
+ExecStart=/opt/patroni/bin/patroni /etc/patroni/patroni.yml
+KillMode=process
+TimeoutSec=30
+Restart=no
+
+[Install]
+WantedBy=multi-user.target
